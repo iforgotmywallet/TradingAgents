@@ -146,6 +146,38 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+### Web Interface 🌐
+
+**NEW!** TradingAgents now includes a modern web interface with real-time progress tracking and interactive configuration.
+
+#### Quick Start
+```bash
+# Set up web app (one-time setup)
+python setup_webapp.py
+
+# Start web app
+./start_webapp_venv.sh
+# OR
+python launch_webapp_venv.py
+
+# Access at: http://localhost:8001
+```
+
+#### Features
+- **Real-Time Progress**: Live status updates for all 12 agents across 5 teams
+- **Interactive Configuration**: Easy-to-use web forms for all parameters
+- **Dynamic Recommendations**: Clear BUY/SELL/HOLD recommendations with color-coded display
+- **WebSocket Updates**: Real-time communication for seamless user experience
+- **Responsive Design**: Works on desktop and mobile devices
+
+#### Web Interface Workflow
+1. Configure analysis parameters through intuitive web forms
+2. Watch real-time progress as agents move from PENDING → IN PROGRESS → DONE
+3. Monitor messages and tool calls in real-time
+4. Receive final recommendation with detailed analysis results
+
+The web interface provides the exact same functionality as the CLI but with a modern, user-friendly experience perfect for both research and demonstration purposes.
+
 ## TradingAgents Package
 
 ### Implementation Details
