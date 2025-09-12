@@ -309,12 +309,22 @@ class TradingAgentsApp {
         const button = document.getElementById('startAnalysis');
         const form = document.getElementById('analysisForm');
         const recommendationCard = document.getElementById('recommendationCard');
+        const resultsContainer = document.getElementById('resultsContainer');
 
         if (analysisStarted) {
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analysis Running...';
             button.disabled = true;
             form.style.opacity = '0.7';
             recommendationCard.style.display = 'none'; // Hide previous recommendation
+            
+            // Clear previous analysis results
+            resultsContainer.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                    <p>Analysis in progress...</p>
+                </div>
+            `;
+            
             this.initializeProgress();
         } else {
             button.innerHTML = '<i class="fas fa-play me-2"></i>Start Analysis';
@@ -511,44 +521,41 @@ class TradingAgentsApp {
         recommendationCard.style.display = 'block';
         
         // Set colors and content based on recommendation
-        let headerClass = '';
-        let icon = '';
+        let cardClass = '';
         let description = '';
         
         switch (recommendation.toUpperCase()) {
             case 'BUY':
-                headerClass = 'recommendation-buy';
-                icon = 'fas fa-arrow-up';
+                cardClass = 'recommendation-buy';
                 description = 'Analysis suggests a positive outlook for this investment.';
                 break;
             case 'SELL':
-                headerClass = 'recommendation-sell';
-                icon = 'fas fa-arrow-down';
+                cardClass = 'recommendation-sell';
                 description = 'Analysis suggests it may be time to exit this position.';
                 break;
             case 'HOLD':
-                headerClass = 'recommendation-hold';
-                icon = 'fas fa-hand-paper';
+                cardClass = 'recommendation-hold';
                 description = 'Analysis suggests maintaining current position.';
                 break;
             default:
-                headerClass = 'recommendation-hold';
-                icon = 'fas fa-question';
+                cardClass = 'recommendation-hold';
                 description = 'Analysis complete. Review detailed results below.';
         }
         
-        // Update header styling
-        recommendationHeader.className = `card-header text-white ${headerClass}`;
+        // Apply colored background to entire card
+        recommendationCard.className = `card mb-3 ${cardClass}`;
+        recommendationHeader.className = `card-header text-white`;
         
-        // Update content
+        // Get the card body and apply the colored background
+        const cardBody = recommendationContent.parentElement;
+        cardBody.className = `card-body text-center recommendation-card-body`;
+        
+        // Update content without icon - just centered text
         recommendationContent.innerHTML = `
-            <div class="recommendation-icon">
-                <i class="${icon}"></i>
-            </div>
-            <div class="recommendation-display text-white">
+            <div class="recommendation-display">
                 ${recommendation.toUpperCase()}
             </div>
-            <div class="recommendation-description text-white">
+            <div class="recommendation-description">
                 ${description}
             </div>
         `;

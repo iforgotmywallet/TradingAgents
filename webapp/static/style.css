@@ -103,33 +103,41 @@ body {
 
 /* Recommendation styles */
 .recommendation-buy {
-    background: linear-gradient(135deg, #28a745, #20c997);
+    background: linear-gradient(135deg, #28a745, #20c997) !important;
 }
 
 .recommendation-sell {
-    background: linear-gradient(135deg, #dc3545, #c82333);
+    background: linear-gradient(135deg, #dc3545, #c82333) !important;
 }
 
 .recommendation-hold {
-    background: linear-gradient(135deg, #ffc107, #e0a800);
+    background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+}
+
+.recommendation-card-body {
+    background: inherit !important;
+    color: white !important;
 }
 
 .recommendation-display {
     font-size: 3rem;
     font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     margin: 20px 0;
+    color: white !important;
 }
 
 .recommendation-icon {
     font-size: 4rem;
     margin-bottom: 15px;
+    color: white !important;
 }
 
 .recommendation-description {
     font-size: 1.1rem;
     margin-top: 15px;
     opacity: 0.9;
+    color: white !important;
 }
 
 .message-item {
