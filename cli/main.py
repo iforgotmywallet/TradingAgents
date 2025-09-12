@@ -1,6 +1,10 @@
 from typing import Optional
 import datetime
 import typer
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
