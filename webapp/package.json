@@ -1,0 +1,19 @@
+{
+  "name": "tradingagents-webapp",
+  "version": "1.0.0",
+  "description": "TradingAgents Web Application",
+  "main": "static/app.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "jsdom": "^23.0.0",
+    "@vitest/ui": "^1.0.0",
+    "c8": "^8.0.0"
+  },
+  "type": "module"
+}

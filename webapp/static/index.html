@@ -122,7 +122,7 @@
                 <!-- Progress Panel -->
                 <div class="card mb-3">
                     <div class="card-header bg-info text-white">
-                        <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Progress</h5>
+                        <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Agent Progress</h5>
                     </div>
                     <div class="card-body">
                         <div id="progressContainer">
@@ -175,6 +175,33 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="reportModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Agent Report</h3>
+                <button class="modal-close" aria-label="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="loading-state" style="display: none;">
+                    <div class="modal-spinner"></div>
+                    <p>Loading report...</p>
+                </div>
+                <div class="error-state" style="display: none;">
+                    <p class="error-message"></p>
+                    <button class="retry-button btn btn-outline-primary btn-sm">
+                        <i class="fas fa-redo me-1"></i>Retry
+                    </button>
+                </div>
+                <div class="report-content" style="display: none;">
+                    <!-- Report content loaded dynamically -->
                 </div>
             </div>
         </div>

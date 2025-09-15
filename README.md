@@ -152,13 +152,8 @@ An interface will appear showing results as they load, letting you track the age
 
 #### Quick Start
 ```bash
-# Set up web app (one-time setup)
-python setup_webapp.py
-
 # Start web app
-./start_webapp_venv.sh
-# OR
-python launch_webapp_venv.py
+python launch_webapp.py
 
 # Access at: http://localhost:8001
 ```

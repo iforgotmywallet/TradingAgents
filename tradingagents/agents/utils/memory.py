@@ -1,11 +1,17 @@
+import logging
+from typing import List, Dict, Any, Tuple, Optional
+
 try:
     import chromadb
     from chromadb.config import Settings
     CHROMADB_AVAILABLE = True
 except ImportError:
     CHROMADB_AVAILABLE = False
-    print("Warning: chromadb not available, memory functionality will be limited")
+    logging.warning("chromadb not available, memory functionality will be limited")
+
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 
 class FinancialSituationMemory:
@@ -31,10 +37,10 @@ class FinancialSituationMemory:
         )
         return response.data[0].embedding
 
-    def add_situations(self, situations_and_advice):
+    def add_situations(self, situations_and_advice: List[Tuple[str, str]]) -> None:
         """Add financial situations and their corresponding advice. Parameter is a list of tuples (situation, rec)"""
         if not CHROMADB_AVAILABLE or self.situation_collection is None:
-            print("Warning: chromadb not available, cannot add situations")
+            logger.warning("chromadb not available, cannot add situations")
             return
 
         situations = []
@@ -57,10 +63,10 @@ class FinancialSituationMemory:
             ids=ids,
         )
 
-    def get_memories(self, current_situation, n_matches=1):
+    def get_memories(self, current_situation: str, n_matches: int = 1) -> List[Dict[str, Any]]:
         """Find matching recommendations using OpenAI embeddings"""
         if not CHROMADB_AVAILABLE or self.situation_collection is None:
-            print("Warning: chromadb not available, returning empty results")
+            logger.warning("chromadb not available, returning empty results")
             return []
 
         query_embedding = self.get_embedding(current_situation)

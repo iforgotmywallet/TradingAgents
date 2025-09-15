@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+"""
+TradingAgents Main Entry Point
+
+This is the main entry point for running TradingAgents analysis.
+For interactive CLI, use: python -m cli.main
+For web interface, use: python webapp/run.py
+"""
+
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -6,21 +15,29 @@ load_dotenv()
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
-# Create a custom config
-config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "google"  # Use a different model
-config["backend_url"] = "https://generativelanguage.googleapis.com/v1"  # Use a different backend
-config["deep_think_llm"] = "gemini-2.0-flash"  # Use a different model
-config["quick_think_llm"] = "gemini-2.0-flash"  # Use a different model
-config["max_debate_rounds"] = 1  # Increase debate rounds
-config["online_tools"] = True  # Increase debate rounds
 
-# Initialize with custom config
-ta = TradingAgentsGraph(debug=True, config=config)
+def main():
+    """Main function to run a sample analysis"""
+    # Create a custom config
+    config = DEFAULT_CONFIG.copy()
+    config["llm_provider"] = "openai"
+    config["backend_url"] = "https://api.openai.com/v1"
+    config["deep_think_llm"] = "gpt-4o"
+    config["quick_think_llm"] = "gpt-4o-mini"
+    config["max_debate_rounds"] = 1
+    config["online_tools"] = True
 
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
-print(decision)
+    # Initialize with custom config
+    ta = TradingAgentsGraph(["market", "fundamentals"], config=config, debug=False)
 
-# Memorize mistakes and reflect
-# ta.reflect_and_remember(1000) # parameter is the position returns
+    # Run analysis
+    final_state, decision = ta.propagate("SPY", "2024-12-01")
+    
+    print("Analysis completed successfully!")
+    print(f"Final recommendation: {decision}")
+    
+    return final_state, decision
+
+
+if __name__ == "__main__":
+    main()

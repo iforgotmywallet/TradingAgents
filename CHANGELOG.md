@@ -36,8 +36,7 @@ All notable changes to TradingAgents will be documented in this file.
 - `webapp/static/app.js` - Frontend JavaScript logic
 - `webapp/requirements.txt` - Web app specific dependencies
 - `webapp/run.py` - Web app launcher
-- `setup_webapp.py` - Automated setup script
-- `launch_webapp_venv.py` - Virtual environment launcher
+- `launch_webapp.py` - Simple web app launcher
 - `test_webapp.py` - Web app testing utilities
 - `.env.example` - Environment configuration template
 

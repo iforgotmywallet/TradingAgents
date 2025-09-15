@@ -1,6 +1,7 @@
 # TradingAgents/graph/setup.py
 
-from typing import Dict, Any
+import logging
+from typing import Dict, Any, Callable
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
@@ -8,8 +9,11 @@ from langgraph.prebuilt import ToolNode
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.agent_utils import Toolkit
+from tradingagents.storage.report_storage import ReportStorageError
 
 from .conditional_logic import ConditionalLogic
+
+logger = logging.getLogger(__name__)
 
 
 class GraphSetup:
@@ -27,6 +31,7 @@ class GraphSetup:
         invest_judge_memory,
         risk_manager_memory,
         conditional_logic: ConditionalLogic,
+        storage_service=None,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -39,6 +44,88 @@ class GraphSetup:
         self.invest_judge_memory = invest_judge_memory
         self.risk_manager_memory = risk_manager_memory
         self.conditional_logic = conditional_logic
+        self.storage_service = storage_service
+        self.current_session_id = None  # Will be set by TradingAgentsGraph
+
+    def set_session_id(self, session_id: str):
+        """Set the current session ID for storage operations."""
+        self.current_session_id = session_id
+
+    def _create_storage_wrapper(self, agent_node: Callable, agent_type: str, report_field: str) -> Callable:
+        """
+        Create a wrapper around an agent node that saves reports to storage.
+        
+        Args:
+            agent_node: The original agent node function
+            agent_type: The agent type for database storage (e.g., 'Market Analyst')
+            report_field: The state field containing the report (e.g., 'market_report')
+            
+        Returns:
+            Wrapped agent node function
+        """
+        def wrapped_agent_node(state):
+            # Call the original agent node
+            result = agent_node(state)
+            
+            # Save report to database if storage service is available
+            if (self.storage_service and self.current_session_id and 
+                report_field in result and result[report_field]):
+                
+                report_content = result[report_field].strip()
+                if report_content:
+                    try:
+                        self.storage_service.save_agent_report_sync(
+                            self.current_session_id, agent_type, report_content
+                        )
+                        logger.debug(f"Saved {agent_type} report to database")
+                    except ReportStorageError as e:
+                        logger.error(f"Failed to save {agent_type} report: {e}")
+                    except Exception as e:
+                        logger.error(f"Unexpected error saving {agent_type} report: {e}")
+            
+            return result
+        
+        return wrapped_agent_node
+
+    def _create_debate_storage_wrapper(self, agent_node: Callable, agent_type: str, 
+                                     debate_field: str, history_field: str) -> Callable:
+        """
+        Create a wrapper for debate agents that saves their contributions to storage.
+        
+        Args:
+            agent_node: The original agent node function
+            agent_type: The agent type for database storage
+            debate_field: The state field containing the debate state
+            history_field: The field within debate state containing agent's history
+            
+        Returns:
+            Wrapped agent node function
+        """
+        def wrapped_debate_node(state):
+            # Call the original agent node
+            result = agent_node(state)
+            
+            # Save debate contribution to database if available
+            if (self.storage_service and self.current_session_id and 
+                debate_field in result and result[debate_field]):
+                
+                debate_state = result[debate_field]
+                if history_field in debate_state and debate_state[history_field]:
+                    history_content = debate_state[history_field].strip()
+                    if history_content:
+                        try:
+                            self.storage_service.save_agent_report_sync(
+                                self.current_session_id, agent_type, history_content
+                            )
+                            logger.debug(f"Saved {agent_type} debate contribution to database")
+                        except ReportStorageError as e:
+                            logger.error(f"Failed to save {agent_type} debate contribution: {e}")
+                        except Exception as e:
+                            logger.error(f"Unexpected error saving {agent_type} debate contribution: {e}")
+            
+            return result
+        
+        return wrapped_debate_node
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -55,57 +142,99 @@ class GraphSetup:
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
 
-        # Create analyst nodes
+        # Create analyst nodes with storage wrappers
         analyst_nodes = {}
         delete_nodes = {}
         tool_nodes = {}
 
         if "market" in selected_analysts:
-            analyst_nodes["market"] = create_market_analyst(
+            base_market_analyst = create_market_analyst(
                 self.quick_thinking_llm, self.toolkit
+            )
+            analyst_nodes["market"] = self._create_storage_wrapper(
+                base_market_analyst, "Market Analyst", "market_report"
             )
             delete_nodes["market"] = create_msg_delete()
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
-            analyst_nodes["social"] = create_social_media_analyst(
+            base_social_analyst = create_social_media_analyst(
                 self.quick_thinking_llm, self.toolkit
+            )
+            analyst_nodes["social"] = self._create_storage_wrapper(
+                base_social_analyst, "Social Analyst", "sentiment_report"
             )
             delete_nodes["social"] = create_msg_delete()
             tool_nodes["social"] = self.tool_nodes["social"]
 
         if "news" in selected_analysts:
-            analyst_nodes["news"] = create_news_analyst(
+            base_news_analyst = create_news_analyst(
                 self.quick_thinking_llm, self.toolkit
+            )
+            analyst_nodes["news"] = self._create_storage_wrapper(
+                base_news_analyst, "News Analyst", "news_report"
             )
             delete_nodes["news"] = create_msg_delete()
             tool_nodes["news"] = self.tool_nodes["news"]
 
         if "fundamentals" in selected_analysts:
-            analyst_nodes["fundamentals"] = create_fundamentals_analyst(
+            base_fundamentals_analyst = create_fundamentals_analyst(
                 self.quick_thinking_llm, self.toolkit
+            )
+            analyst_nodes["fundamentals"] = self._create_storage_wrapper(
+                base_fundamentals_analyst, "Fundamentals Analyst", "fundamentals_report"
             )
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
-        # Create researcher and manager nodes
-        bull_researcher_node = create_bull_researcher(
+        # Create researcher and manager nodes with storage wrappers
+        base_bull_researcher = create_bull_researcher(
             self.quick_thinking_llm, self.bull_memory
         )
-        bear_researcher_node = create_bear_researcher(
+        bull_researcher_node = self._create_debate_storage_wrapper(
+            base_bull_researcher, "Bull Researcher", "investment_debate_state", "bull_history"
+        )
+        
+        base_bear_researcher = create_bear_researcher(
             self.quick_thinking_llm, self.bear_memory
         )
-        research_manager_node = create_research_manager(
+        bear_researcher_node = self._create_debate_storage_wrapper(
+            base_bear_researcher, "Bear Researcher", "investment_debate_state", "bear_history"
+        )
+        
+        base_research_manager = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
         )
-        trader_node = create_trader(self.quick_thinking_llm, self.trader_memory)
+        research_manager_node = self._create_storage_wrapper(
+            base_research_manager, "Research Manager", "investment_plan"
+        )
+        
+        base_trader = create_trader(self.quick_thinking_llm, self.trader_memory)
+        trader_node = self._create_storage_wrapper(
+            base_trader, "Trader", "trader_investment_plan"
+        )
 
-        # Create risk analysis nodes
-        risky_analyst = create_risky_debator(self.quick_thinking_llm)
-        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
-        safe_analyst = create_safe_debator(self.quick_thinking_llm)
-        risk_manager_node = create_risk_manager(
+        # Create risk analysis nodes with storage wrappers
+        base_risky_analyst = create_risky_debator(self.quick_thinking_llm)
+        risky_analyst = self._create_debate_storage_wrapper(
+            base_risky_analyst, "Risky Analyst", "risk_debate_state", "risky_history"
+        )
+        
+        base_neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
+        neutral_analyst = self._create_debate_storage_wrapper(
+            base_neutral_analyst, "Neutral Analyst", "risk_debate_state", "neutral_history"
+        )
+        
+        base_safe_analyst = create_safe_debator(self.quick_thinking_llm)
+        safe_analyst = self._create_debate_storage_wrapper(
+            base_safe_analyst, "Safe Analyst", "risk_debate_state", "safe_history"
+        )
+        
+        base_risk_manager = create_risk_manager(
             self.deep_thinking_llm, self.risk_manager_memory
+        )
+        risk_manager_node = self._create_storage_wrapper(
+            base_risk_manager, "Portfolio Manager", "final_trade_decision"
         )
 
         # Create workflow
