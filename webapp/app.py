@@ -193,6 +193,44 @@ def convert_to_serializable(obj):
         # Convert other objects to string representation
         return str(obj)
 
+def get_recommendation_from_database(session_id: str) -> str:
+    """
+    Retrieve recommendation from database for a given session.
+    
+    Args:
+        session_id: The session ID to retrieve recommendation for
+        
+    Returns:
+        The recommendation (BUY/SELL/HOLD) or "HOLD" as fallback
+    """
+    if not report_retrieval_service or not session_id:
+        logger.warning("Report retrieval service not available or no session ID provided")
+        return "HOLD"
+    
+    try:
+        # Get final analysis which includes recommendation
+        result = report_retrieval_service.get_final_analysis_safe(session_id)
+        
+        if result['success'] and result['data']:
+            recommendation = result['data'].get('recommendation')
+            if recommendation and recommendation in ['BUY', 'SELL', 'HOLD']:
+                logger.debug(f"Retrieved recommendation from database: {recommendation}")
+                return recommendation
+        
+        # Log the reason for fallback
+        if not result['success']:
+            logger.debug(f"Failed to retrieve recommendation: {result.get('error', {}).get('message', 'Unknown error')}")
+        else:
+            logger.debug("No recommendation found in database")
+            
+    except Exception as e:
+        logger.error(f"Error retrieving recommendation from database: {e}")
+    
+    # Fallback to HOLD
+    logger.debug("Using fallback recommendation: HOLD")
+    return "HOLD"
+
+
 def check_api_keys(provider: str) -> Optional[str]:
     """Check if required API keys are set for the provider"""
     provider = provider.lower()
@@ -209,94 +247,7 @@ def check_api_keys(provider: str) -> Optional[str]:
     
     return None
 
-def extract_recommendation(decision_text: str) -> str:
-    """Extract BUY/SELL/HOLD recommendation from decision text with optimized precision focusing on summary section"""
-    if not decision_text:
-        return "HOLD"
-    
-    decision_upper = str(decision_text).upper()
-    
-    # Import regex for pattern matching
-    import re
-    
-    # PRIORITY 1: Look for "In summary" section (highest priority)
-    # This is where the final recommendation is typically stated
-    summary_patterns = [
-        r'\*\*IN\s+SUMMARY:\*\*\s*\*\*(\w+)\*\*',        # **In summary:** **HOLD**
-        r'\*\*IN\s+SUMMARY[:\s]*\*\*\s*\*\*(\w+)\*\*',   # **In summary:** **HOLD** (flexible spacing)
-        r'\*\*IN\s+SUMMARY[:\s]*\*\*[^*]*\*\*(\w+)\*\*', # **In summary:** ... **HOLD** (with text between)
-        r'IN\s+SUMMARY[:\s]*\*\*(\w+)\*\*',              # In summary: **HOLD** (without bold summary)
-        r'SUMMARY[:\s]*\*\*(\w+)\*\*',                   # Summary: **HOLD**
-    ]
-    
-    for pattern in summary_patterns:
-        matches = re.findall(pattern, decision_upper)
-        for match in matches:
-            if match in ['BUY', 'SELL', 'HOLD']:
-                return match
-    
-    # PRIORITY 2: Look for explicit recommendation statements in the last portion of text
-    # Focus on the last 500 characters where final recommendations are typically made
-    last_section = decision_upper[-500:] if len(decision_upper) > 500 else decision_upper
-    
-    final_recommendation_patterns = [
-        r'MY\s+RECOMMENDATION\s+IS\s+TO\s+(\w+)',
-        r'RECOMMENDATION\s+IS\s+TO\s+(\w+)',
-        r'RECOMMEND\s+(\w+)',
-        r'FINAL\s+RECOMMENDATION[:\s]*(\w+)',
-        r'CONCLUSION[:\s]*(\w+)',
-    ]
-    
-    for pattern in final_recommendation_patterns:
-        matches = re.findall(pattern, last_section)
-        for match in matches:
-            if match in ['BUY', 'SELL', 'HOLD']:
-                return match
-    
-    # PRIORITY 3: Look for bolded recommendations in the last section
-    bolded_matches = re.findall(r'\*\*(\w+)\*\*', last_section)
-    for match in bolded_matches:
-        if match in ['BUY', 'SELL', 'HOLD']:
-            return match
-    
-    # PRIORITY 4: Look for contextual recommendations in the entire text
-    buy_contexts = len(re.findall(r'(?:RECOMMEND|SUGGESTION|DECISION).*?BUY', decision_upper))
-    sell_contexts = len(re.findall(r'(?:RECOMMEND|SUGGESTION|DECISION).*?SELL', decision_upper))
-    hold_contexts = len(re.findall(r'(?:RECOMMEND|SUGGESTION|DECISION).*?HOLD', decision_upper))
-    
-    # Return the most contextually relevant recommendation
-    if hold_contexts > max(buy_contexts, sell_contexts):
-        return 'HOLD'
-    elif buy_contexts > sell_contexts:
-        return 'BUY'
-    elif sell_contexts > buy_contexts:
-        return 'SELL'
-    
-    # PRIORITY 5: Fallback to careful word counting (standalone words only)
-    buy_count = len(re.findall(r'\bBUY\b', decision_upper))
-    sell_count = len(re.findall(r'\bSELL\b', decision_upper))
-    hold_count = len(re.findall(r'\bHOLD\b', decision_upper))
-    
-    # PRIORITY 6: Look for sentiment indicators only if no clear recommendation
-    if max(buy_count, sell_count, hold_count) == 0:
-        positive_indicators = ["BULLISH", "POSITIVE", "UPWARD", "LONG", "INVEST", "PURCHASE"]
-        negative_indicators = ["BEARISH", "NEGATIVE", "DOWNWARD", "SHORT", "AVOID", "DECLINE"]
-        
-        positive_count = sum(1 for indicator in positive_indicators if indicator in decision_upper)
-        negative_count = sum(1 for indicator in negative_indicators if indicator in decision_upper)
-        
-        if positive_count > negative_count:
-            return "BUY"
-        elif negative_count > positive_count:
-            return "SELL"
-    
-    # Return the most frequent explicit recommendation
-    if hold_count >= max(buy_count, sell_count):
-        return "HOLD"
-    elif buy_count > sell_count:
-        return "BUY"
-    else:
-        return "SELL"
+
 
 
 def find_session_for_ticker_date(ticker: str, date: str) -> Optional[str]:
@@ -802,8 +753,8 @@ async def run_analysis_background(graph: TradingAgentsGraph, request: AnalysisRe
         serializable_state = convert_to_serializable(final_state)
         serializable_decision = convert_to_serializable(decision)
         
-        # Extract final recommendation from decision
-        final_recommendation = extract_recommendation(serializable_decision)
+        # Get recommendation from database using the session ID
+        final_recommendation = get_recommendation_from_database(graph.current_session_id)
 
         # Send completion status with recommendation
         await manager.broadcast(json.dumps({
