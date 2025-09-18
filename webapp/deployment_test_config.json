@@ -1,0 +1,58 @@
+{
+  "base_url": "https://your-app.railway.app",
+  "timeout": 30,
+  "retry_attempts": 3,
+  "retry_delay": 5,
+  "monitoring_interval": 300,
+  "critical_endpoints": [
+    "/",
+    "/health",
+    "/static/style.css",
+    "/static/app.js"
+  ],
+  "notification_webhook": null,
+  "max_response_time": 5.0,
+  "min_success_rate": 95.0,
+  "database_tests": {
+    "enabled": true,
+    "test_queries": [
+      "SELECT 1",
+      "SELECT version()",
+      "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+    ]
+  },
+  "api_tests": {
+    "openai": {
+      "enabled": true,
+      "endpoint": "https://api.openai.com/v1/models",
+      "timeout": 10
+    },
+    "finnhub": {
+      "enabled": true,
+      "endpoint": "https://finnhub.io/api/v1/quote",
+      "test_symbol": "AAPL",
+      "timeout": 10
+    }
+  },
+  "websocket_tests": {
+    "enabled": true,
+    "test_messages": [
+      {"type": "ping", "data": "test"},
+      {"type": "health_check", "data": {}}
+    ],
+    "timeout": 10
+  },
+  "performance_thresholds": {
+    "max_response_time_ms": 5000,
+    "max_database_query_time_ms": 1000,
+    "max_api_response_time_ms": 10000,
+    "min_success_rate_percent": 95.0
+  },
+  "monitoring": {
+    "check_interval_seconds": 300,
+    "alert_on_failure": true,
+    "alert_on_degraded_performance": true,
+    "store_historical_data": true,
+    "max_history_days": 30
+  }
+}

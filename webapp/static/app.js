@@ -897,14 +897,46 @@ class TradingAgentsApp {
     }
 
     setupWebSocket() {
+        // Enhanced WebSocket setup with Railway proxy support
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/ws`;
         
         console.log('Connecting to WebSocket:', wsUrl);
+        console.log('Connection details:', {
+            protocol: window.location.protocol,
+            host: window.location.host,
+            pathname: window.location.pathname,
+            origin: window.location.origin
+        });
+        
+        // Close existing connection if any
+        if (this.websocket && this.websocket.readyState !== WebSocket.CLOSED) {
+            this.websocket.close();
+        }
+        
         this.websocket = new WebSocket(wsUrl);
         
+        // Set connection timeout
+        const connectionTimeout = setTimeout(() => {
+            if (this.websocket.readyState === WebSocket.CONNECTING) {
+                console.warn('WebSocket connection timeout, closing...');
+                this.websocket.close();
+            }
+        }, 10000); // 10 second timeout
+        
         this.websocket.onopen = () => {
+            clearTimeout(connectionTimeout);
             console.log('WebSocket connected successfully');
+            console.log('WebSocket ready state:', this.websocket.readyState);
+            
+            // Send initial ping to test connection
+            this.sendWebSocketMessage({
+                type: 'ping',
+                message: 'connection_test',
+                timestamp: new Date().toISOString()
+            });
+            
             // Ensure agent cards are properly initialized when WebSocket connects
             this.ensureAgentCardsInitialized();
             // Update ReportCache context on WebSocket connection
@@ -914,21 +946,59 @@ class TradingAgentsApp {
         this.websocket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+                console.log('WebSocket message received:', data.type, data);
                 this.handleWebSocketMessage(data);
             } catch (error) {
-                console.error('Error parsing WebSocket message:', error);
+                console.error('Error parsing WebSocket message:', error, event.data);
             }
         };
         
         this.websocket.onclose = (event) => {
-            console.log('WebSocket disconnected:', event.code, event.reason);
-            // Attempt to reconnect after 3 seconds
-            setTimeout(() => this.setupWebSocket(), 3000);
+            clearTimeout(connectionTimeout);
+            console.log('WebSocket disconnected:', {
+                code: event.code,
+                reason: event.reason,
+                wasClean: event.wasClean
+            });
+            
+            // Don't reconnect if it was a clean close (server shutdown)
+            if (event.code === 1001) {
+                console.log('Server shutdown detected, not reconnecting');
+                return;
+            }
+            
+            // Attempt to reconnect after delay with exponential backoff
+            const reconnectDelay = Math.min(3000 * Math.pow(1.5, this.reconnectAttempts || 0), 30000);
+            console.log(`Attempting to reconnect in ${reconnectDelay}ms...`);
+            
+            setTimeout(() => {
+                this.reconnectAttempts = (this.reconnectAttempts || 0) + 1;
+                this.setupWebSocket();
+            }, reconnectDelay);
         };
         
         this.websocket.onerror = (error) => {
+            clearTimeout(connectionTimeout);
             console.error('WebSocket error:', error);
+            console.error('WebSocket state:', this.websocket.readyState);
         };
+    }
+    
+    sendWebSocketMessage(message) {
+        /**
+         * Send a message through WebSocket with connection state checking
+         * @param {Object} message - The message object to send
+         */
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            try {
+                this.websocket.send(JSON.stringify(message));
+                console.log('WebSocket message sent:', message.type);
+            } catch (error) {
+                console.error('Error sending WebSocket message:', error);
+            }
+        } else {
+            console.warn('WebSocket not connected, cannot send message:', message);
+        }
     }
 
     ensureAgentCardsInitialized() {
@@ -1014,9 +1084,28 @@ class TradingAgentsApp {
 
     handleWebSocketMessage(data) {
         switch (data.type) {
+            case 'connection_established':
+                console.log('WebSocket connection confirmed:', data.message);
+                if (data.railway_proxy) {
+                    console.log('Railway proxy detected and handled');
+                }
+                // Reset reconnection attempts on successful connection
+                this.reconnectAttempts = 0;
+                this.showNotification('success', 'WebSocket connected successfully');
+                break;
+                
+            case 'pong':
+                console.log('WebSocket pong received:', data.message);
+                break;
+                
+            case 'echo':
+                console.log('WebSocket echo received:', data);
+                break;
+                
             case 'status':
                 this.addMessage('System', data.message);
                 break;
+                
             case 'agent_status':
                 // Validate agent status data before processing
                 if (this.validateAgentStatusData(data)) {
@@ -1025,25 +1114,41 @@ class TradingAgentsApp {
                     console.warn('Invalid agent status data received:', data);
                 }
                 break;
+                
             case 'analysis_start':
                 // Handle analysis start - update ReportCache context
                 this.handleAnalysisStart(data);
                 break;
+                
             case 'analysis_complete':
                 this.handleAnalysisComplete(data);
                 break;
+                
             case 'context_change':
                 // Handle ticker/date context changes
                 this.handleContextChange(data);
                 break;
+                
             case 'error':
                 this.handleError(data.message);
                 break;
-            case 'ping':
-                // Keep-alive message, no action needed
+                
+            case 'server_shutdown':
+                console.warn('Server shutdown notification:', data.message);
+                this.showNotification('warning', data.message);
                 break;
+                
+            case 'ping':
+                // Respond to server ping
+                this.sendWebSocketMessage({
+                    type: 'pong', 
+                    message: 'pong',
+                    timestamp: new Date().toISOString()
+                });
+                break;
+                
             default:
-                console.warn('Unknown WebSocket message type:', data.type);
+                console.warn('Unknown WebSocket message type:', data.type, data);
         }
     }
 
@@ -1946,6 +2051,34 @@ class TradingAgentsApp {
         this.updateUI(false);
         this.showError(message);
         this.addMessage('Error', message);
+    }
+
+    showNotification(type, message) {
+        /**
+         * Show a notification to the user
+         * @param {string} type - The notification type (success, error, warning, info)
+         * @param {string} message - The notification message
+         */
+        console.log(`Notification [${type.toUpperCase()}]: ${message}`);
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
     }
 
     displayRecommendation(recommendation) {

@@ -1,0 +1,141 @@
+{
+  "timestamp": "2025-09-17T23:16:07.535529",
+  "base_url": "http://localhost:8001",
+  "tests": {
+    "environment_variables": {
+      "status": "FAIL",
+      "message": "Missing required environment variables: OPENAI_API_KEY, FINNHUB_API_KEY, NEON_DATABASE_URL",
+      "details": {
+        "missing_required": [
+          "OPENAI_API_KEY",
+          "FINNHUB_API_KEY",
+          "NEON_DATABASE_URL"
+        ],
+        "missing_railway": [
+          "PORT",
+          "RAILWAY_ENVIRONMENT"
+        ]
+      }
+    },
+    "database_connectivity": {
+      "status": "FAIL",
+      "message": "NEON_DATABASE_URL environment variable not set",
+      "details": {}
+    },
+    "api_service_availability": {
+      "status": "PASS",
+      "message": "All API services available (0 tested)",
+      "details": {
+        "services": []
+      }
+    },
+    "application_endpoints": {
+      "status": "FAIL",
+      "message": "Some endpoints failed: ['/', '/health', '/api/analyze', '/static/style.css', '/static/app.js']",
+      "details": {
+        "successful": [],
+        "failed": [
+          {
+            "path": "/",
+            "method": "GET",
+            "description": "Main page",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x101a60260>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "path": "/health",
+            "method": "GET",
+            "description": "Health check",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x102f58560>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "path": "/api/analyze",
+            "method": "POST",
+            "description": "Analysis endpoint",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /api/analyze (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x102f58d40>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "path": "/static/style.css",
+            "method": "GET",
+            "description": "Static CSS",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /static/style.css (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x102f23fb0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "path": "/static/app.js",
+            "method": "GET",
+            "description": "Static JS",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /static/app.js (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x102f59280>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          }
+        ]
+      }
+    },
+    "railway_configuration": {
+      "status": "FAIL",
+      "message": "Railway configuration issues found: 4",
+      "details": {
+        "checks": [
+          {
+            "check": "Railway Environment",
+            "status": false,
+            "message": "Not running on Railway (RAILWAY_ENVIRONMENT not set)"
+          },
+          {
+            "check": "PORT Configuration",
+            "status": false,
+            "message": "PORT environment variable not set"
+          },
+          {
+            "check": "railway.toml exists",
+            "status": false,
+            "message": "Configuration file not found: webapp/railway.toml"
+          },
+          {
+            "check": "Procfile exists",
+            "status": false,
+            "message": "Configuration file not found: webapp/Procfile"
+          }
+        ],
+        "failed": [
+          {
+            "check": "Railway Environment",
+            "status": false,
+            "message": "Not running on Railway (RAILWAY_ENVIRONMENT not set)"
+          },
+          {
+            "check": "PORT Configuration",
+            "status": false,
+            "message": "PORT environment variable not set"
+          },
+          {
+            "check": "railway.toml exists",
+            "status": false,
+            "message": "Configuration file not found: webapp/railway.toml"
+          },
+          {
+            "check": "Procfile exists",
+            "status": false,
+            "message": "Configuration file not found: webapp/Procfile"
+          }
+        ]
+      }
+    },
+    "websocket_connectivity": {
+      "status": "FAIL",
+      "message": "WebSocket connection failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'timeout'",
+      "details": {
+        "error_type": "TypeError",
+        "ws_url": "ws://localhost:8001/ws"
+      }
+    }
+  },
+  "summary": {
+    "total": 6,
+    "passed": 1,
+    "failed": 5,
+    "warnings": 0
+  }
+}
