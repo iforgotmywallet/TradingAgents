@@ -1751,6 +1751,7 @@ async def start_analysis(request: AnalysisRequest):
             )
         
         # Create config with user selections
+        DEFAULT_CONFIG = get_default_config()
         config = DEFAULT_CONFIG.copy()
         config["max_debate_rounds"] = request.research_depth
         config["max_risk_discuss_rounds"] = request.research_depth
