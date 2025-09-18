@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradingAgents Web App</title>
+    <title>Trading Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="/static/style.css" rel="stylesheet">
@@ -17,7 +17,7 @@
             <div class="col-12">
                 <div class="welcome-header text-center py-4">
                     <h1 class="display-4 text-success">
-                        <i class="fas fa-chart-line me-3"></i>TradingAgents Web App
+                        <i class="fas fa-chart-line me-3"></i>Trading Assistant
                     </h1>
                     <p class="lead text-muted">Multi-Agents LLM Financial Trading Framework</p>
                     <p class="text-muted">
@@ -84,8 +84,8 @@
                                 <label for="llmProvider" class="form-label">
                                     <strong>Step 5: LLM Provider</strong>
                                 </label>
-                                <select class="form-select" id="llmProvider" required>
-                                    <!-- Will be populated by JavaScript -->
+                                <select class="form-select" id="llmProvider" required disabled>
+                                    <option value="openai" selected>Openai</option>
                                 </select>
                                 <div class="form-text">Select which service to use</div>
                             </div>

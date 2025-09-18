@@ -177,3 +177,34 @@ node_modules/
 uv.lock
 Pipfile.lock
 poetry.lock
+
+# Kiro IDE files
+.kiro/
+
+# Development and testing files
+test_*.py
+*_test.py
+*_tests.py
+cleanup*.py
+fix_*.py
+check_*.py
+run_*.py
+kill_*.py
+
+# Development summaries and documentation
+*_SUMMARY.md
+*_README.md
+CLEANUP*.md
+KILL_APP*.md
+OPTIMIZED*.md
+SNAP_*.md
+FILE_BASED*.md
+FINAL_DECISION*.md
+
+# Additional sensitive patterns
+*.key
+*.pem
+*.p12
+*.pfx
+secrets.json
+config.json
