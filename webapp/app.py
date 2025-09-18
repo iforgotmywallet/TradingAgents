@@ -2305,6 +2305,9 @@ async def get_agent_report(ticker: str, date: str, agent: str):
             logger.debug(f"🔄 Converted agent key '{original_agent}' to '{agent}'")
         
         # Validate agent name using database schema
+        classes = get_report_retrieval_classes()
+        AgentReportSchema = classes['AgentReportSchema']
+        
         if not AgentReportSchema.is_valid_agent_type(agent):
             logger.warning(f"Unknown agent: {original_agent} -> {agent}")
             valid_agents = AgentReportSchema.get_all_agent_types()
