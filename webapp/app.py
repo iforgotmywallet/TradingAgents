@@ -137,16 +137,7 @@ class ReportResponse(BaseModel):
 
 # Removed file-based report mapping - now using database only
 
-# Reverse mapping from frontend keys to full agent names
-AGENT_KEY_TO_NAME_MAPPING = {
-    'market': 'Market Analyst',
-    'sentiment': 'Social Analyst',
-    'news': 'News Analyst',
-    'fundamentals': 'Fundamentals Analyst',
-    'investment': 'Bull Researcher',  # Note: multiple agents map to this
-    'trader': 'Trader',
-    'final': 'Risky Analyst'  # Note: multiple agents map to this
-}
+# Removed problematic AGENT_KEY_TO_NAME_MAPPING - now using agent names directly
 
 class ConnectionManager:
     def __init__(self):
@@ -250,9 +241,50 @@ def check_api_keys(provider: str) -> Optional[str]:
 
 
 
+def convert_agent_key_to_name(agent_key: str) -> str:
+    """
+    Convert lowercase underscore agent key back to proper agent name.
+    
+    Args:
+        agent_key: Agent key in format like 'market_analyst' or 'Market Analyst'
+        
+    Returns:
+        Proper agent name like 'Market Analyst'
+    """
+    # Mapping from lowercase underscore keys to proper agent names
+    agent_key_mapping = {
+        'market_analyst': 'Market Analyst',
+        'social_analyst': 'Social Analyst',
+        'news_analyst': 'News Analyst',
+        'fundamentals_analyst': 'Fundamentals Analyst',
+        'bull_researcher': 'Bull Researcher',
+        'bear_researcher': 'Bear Researcher',
+        'research_manager': 'Research Manager',
+        'trader': 'Trader',
+        'risky_analyst': 'Risky Analyst',
+        'neutral_analyst': 'Neutral Analyst',
+        'safe_analyst': 'Safe Analyst',
+        'portfolio_manager': 'Portfolio Manager'
+    }
+    
+    # If it's already a proper agent name, return as-is
+    if agent_key in agent_key_mapping.values():
+        return agent_key
+    
+    # Convert lowercase underscore to proper name
+    lowercase_key = agent_key.lower().replace(' ', '_')
+    
+    if lowercase_key in agent_key_mapping:
+        return agent_key_mapping[lowercase_key]
+    
+    # If no mapping found, try to convert by capitalizing words
+    return ' '.join(word.capitalize() for word in agent_key.replace('_', ' ').split())
+
+
 def find_session_for_ticker_date(ticker: str, date: str) -> Optional[str]:
     """
     Find the most recent session ID for a given ticker and date.
+    Simple single-attempt lookup without retries.
     
     Args:
         ticker: Stock ticker symbol
@@ -262,26 +294,32 @@ def find_session_for_ticker_date(ticker: str, date: str) -> Optional[str]:
         Session ID if found, None otherwise
     """
     if not report_retrieval_service:
+        logger.warning(f"Report retrieval service not available for {ticker}/{date}")
         return None
     
     try:
+        logger.debug(f"Finding session for {ticker} on {date}")
+        
         # Get recent sessions for the ticker
         sessions = report_retrieval_service.get_sessions_by_ticker(ticker.upper(), limit=100)
         
-        # Find sessions that match the date
+        logger.debug(f"Retrieved {len(sessions)} sessions for {ticker}")
+        
+        # Find sessions that match the date exactly
         matching_sessions = [
             session for session in sessions 
             if session.get('analysis_date') == date
         ]
         
-        if not matching_sessions:
-            logger.debug(f"No sessions found for {ticker} on {date}")
-            return None
+        if matching_sessions:
+            # Return the most recent session (sessions are ordered by created_at DESC)
+            most_recent = matching_sessions[0]
+            session_id = most_recent['session_id']
+            logger.info(f"✅ Found session {session_id} for {ticker} on {date}")
+            return session_id
         
-        # Return the most recent session (sessions are ordered by created_at DESC)
-        most_recent = matching_sessions[0]
-        logger.debug(f"Found session {most_recent['session_id']} for {ticker} on {date}")
-        return most_recent['session_id']
+        logger.warning(f"❌ Could not find session for {ticker} on {date}")
+        return None
         
     except Exception as e:
         logger.error(f"Error finding session for {ticker}/{date}: {e}")
@@ -305,11 +343,12 @@ def load_report_from_database(ticker: str, date: str, agent: str) -> ReportRespo
         session_id = find_session_for_ticker_date(ticker, date)
         
         if not session_id:
+            logger.warning(f"No session found for {ticker} on {date}")
             return ReportResponse(
                 success=False,
                 agent=agent,
                 error="Session not found",
-                message=f"No analysis session found for {ticker} on {date}. Analysis may not have been completed yet."
+                message=f"No analysis session found for {agent} report on {ticker} ({date}). Analysis may not have been completed yet."
             )
         
         # Retrieve the agent report using the safe method
@@ -335,35 +374,35 @@ def load_report_from_database(ticker: str, date: str, agent: str) -> ReportRespo
                     success=False,
                     agent=agent,
                     error="Report not available",
-                    message=f"Report for {agent} is not yet available. Analysis may still be in progress."
+                    message=f"{agent} report is not yet available. Analysis may still be in progress."
                 )
             elif error_type == 'SessionNotFoundError':
                 return ReportResponse(
                     success=False,
                     agent=agent,
                     error="Session not found",
-                    message=f"Analysis session not found for {ticker} on {date}"
+                    message=f"Analysis session not found for {agent} report on {ticker} ({date})"
                 )
             elif error_type == 'AgentValidationError':
                 return ReportResponse(
                     success=False,
                     agent=agent,
                     error="Invalid agent",
-                    message=f"Invalid agent type: {agent}"
+                    message=f"Invalid agent type '{agent}'. Please check the agent name and try again."
                 )
             elif error_type == 'DatabaseConnectionError':
                 return ReportResponse(
                     success=False,
                     agent=agent,
                     error="Database error",
-                    message="Database connection failed. Please try again later."
+                    message=f"Database connection failed while retrieving {agent} report. Please try again later."
                 )
             else:
                 return ReportResponse(
                     success=False,
                     agent=agent,
                     error="Retrieval error",
-                    message=f"Failed to retrieve report: {error_message}"
+                    message=f"Failed to retrieve {agent} report: {error_message}"
                 )
                 
     except Exception as e:
@@ -372,7 +411,7 @@ def load_report_from_database(ticker: str, date: str, agent: str) -> ReportRespo
             success=False,
             agent=agent,
             error="Internal error",
-            message=f"Internal server error: {str(e)}"
+            message=f"Internal server error while retrieving {agent} report: {str(e)}"
         )
 
 
@@ -986,9 +1025,13 @@ async def get_ticker_sessions(ticker: str, limit: int = 10):
 async def get_agent_report(ticker: str, date: str, agent: str):
     """Get the report content for a specific agent"""
     try:
-        # Input validation
+        # Import required modules
         import re
         
+        # Convert lowercase underscore format back to proper agent name
+        agent = convert_agent_key_to_name(agent)
+        
+        # Input validation
         # Validate ticker format (1-5 uppercase letters)
         if not re.match(r'^[A-Z]{1,5}$', ticker):
             logger.warning(f"Invalid ticker format: {ticker}")
@@ -1005,19 +1048,13 @@ async def get_agent_report(ticker: str, date: str, agent: str):
                 detail=f"Invalid date format: {date}. Must be YYYY-MM-DD format."
             )
         
-        # Convert agent key to full agent name if needed
-        original_agent = agent
-        if agent in AGENT_KEY_TO_NAME_MAPPING:
-            agent = AGENT_KEY_TO_NAME_MAPPING[agent]
-            logger.debug(f"🔄 Converted agent key '{original_agent}' to '{agent}'")
-        
-        # Validate agent name using database schema
+        # Validate agent name directly against database schema (no intermediate key transformations)
         if not AgentReportSchema.is_valid_agent_type(agent):
-            logger.warning(f"Unknown agent: {original_agent} -> {agent}")
+            logger.warning(f"Unknown agent: {agent}")
             valid_agents = AgentReportSchema.get_all_agent_types()
             raise HTTPException(
                 status_code=400, 
-                detail=f"Unknown agent: {original_agent}. Valid agents: {valid_agents}"
+                detail=f"Unknown agent '{agent}'. Valid agent names: {', '.join(valid_agents)}"
             )
         
         logger.info(f"📊 Retrieving report for {agent} - {ticker}/{date}")
@@ -1042,12 +1079,12 @@ async def get_agent_report(ticker: str, date: str, agent: str):
     except HTTPException:
         raise
     except Exception as e:
-        error_msg = f"Internal server error while loading report: {str(e)}"
+        error_msg = f"Internal server error while loading {agent} report: {str(e)}"
         logger.error(f"❌ {error_msg}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         
         # Log structured error information for debugging
-        logger.error(f"Error context - Ticker: {ticker}, Date: {date}, Agent: {agent}")
+        logger.error(f"Error context - Agent: {agent}, Ticker: {ticker}, Date: {date}")
         logger.error(f"Database service available: {report_retrieval_service is not None}")
         
         raise HTTPException(status_code=500, detail=error_msg)
