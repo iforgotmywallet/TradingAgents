@@ -22,8 +22,6 @@ The web app follows the same 5-step workflow as the CLI:
 
 ## Installation
 
-### Local Development
-
 1. **Install Dependencies**:
    ```bash
    pip install -r webapp/requirements.txt
@@ -39,28 +37,6 @@ The web app follows the same 5-step workflow as the CLI:
    ```bash
    cp .env.example .env
    ```
-
-### Railway Deployment
-
-For deploying to Railway cloud platform, see the comprehensive deployment documentation:
-
-- **[Railway Deployment Guide](RAILWAY_DEPLOYMENT_GUIDE.md)** - Complete deployment walkthrough
-- **[Railway Environment Setup](RAILWAY_ENV_SETUP.md)** - Environment variable configuration
-- **[Railway CLI Guide](RAILWAY_CLI_GUIDE.md)** - Command-line interface reference
-- **[Railway Troubleshooting](RAILWAY_TROUBLESHOOTING.md)** - Problem-solving guide
-- **[Documentation Index](RAILWAY_DOCS_INDEX.md)** - Overview of all Railway docs
-
-Quick Railway deployment:
-```bash
-# Install Railway CLI
-npm install -g @railway/cli
-
-# Login and deploy
-railway login
-cd webapp
-railway init
-railway up
-```
 
 ## Usage
 

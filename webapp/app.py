@@ -1292,7 +1292,4 @@ async def get_all_reports(ticker: str, date: str):
 
 if __name__ == "__main__":
     import uvicorn
-    # Use Railway's PORT environment variable, fallback to 8000 for local development
-    port = int(os.environ.get("PORT", 8000))
-    # Bind to 0.0.0.0 to accept connections from Railway's proxy
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
